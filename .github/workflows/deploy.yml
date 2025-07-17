@@ -1,15 +1,15 @@
-name: Build and Deploy via S3 and Docker
+name: CI/CD with S3, Docker & EC2
 
 on:
   push:
     branches: [ main ]
 
 env:
-  BUCKET_NAME: my-java-artifacts
-  JAR_NAME: app.jar
+  BUCKET_NAME: my-java-artifacts     # 🔁 Replace with your S3 bucket name
+  JAR_NAME: app.jar                  # Name of the final JAR in S3
 
 jobs:
-  build-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,42 +25,51 @@ jobs:
       - name: 🏗 Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: 📦 Upload to GitHub Artifact
+      - name: 📦 Upload JAR to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: springboot-app
           path: target/*.jar
 
-      - name: ☁️ Upload JAR to S3
-        uses: aws-actions/s3-sync@v1
-        with:
-          bucket: ${{ env.BUCKET_NAME }}
-          region: us-east-1
-          source: ./target
+      - name: ☁️ Upload JAR to S3 using AWS CLI
+        run: |
+          pip install awscli
+          aws s3 cp target/*.jar s3://${{ env.BUCKET_NAME }}/${{ env.JAR_NAME }} --region us-east-1
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: 🚀 Deploy on EC2 using Docker and S3 JAR
+      - name: 📤 Copy Dockerfile to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "Dockerfile"
+          target: "/home/ec2-user/apps/"
+
+      - name: 🚀 Deploy on EC2 using Docker
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo yum install -y awscli docker
+            sudo yum install -y docker awscli
             sudo service docker start
-            mkdir -p ~/apps
-            cd ~/apps
 
-            aws s3 cp s3://${{ env.BUCKET_NAME }}/app.jar app.jar --region us-east-1
+            mkdir -p /home/ec2-user/apps
+            cd /home/ec2-user/apps
 
-            echo 'FROM eclipse-temurin:17-jdk-alpine' > Dockerfile
-            echo 'COPY app.jar app.jar' >> Dockerfile
-            echo 'ENTRYPOINT ["java", "-jar", "/app.jar"]' >> Dockerfile
+            echo "⬇️ Downloading app.jar from S3"
+            aws s3 cp s3://${{ env.BUCKET_NAME }}/${{ env.JAR_NAME }} app.jar --region us-east-1
 
+            echo "🧹 Cleaning up old Docker containers"
             docker stop springboot-app || true
             docker rm springboot-app || true
 
+            echo "🐳 Building Docker image"
             docker build -t springboot-app .
+
+            echo "🚀 Running Docker container"
             docker run -d --name springboot-app -p 8080:8080 springboot-app
