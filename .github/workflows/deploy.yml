@@ -1,18 +1,22 @@
-name: CI/CD Deploy to EC2
+name: Build and Deploy via S3 and Docker
 
 on:
   push:
     branches: [ main ]
 
+env:
+  BUCKET_NAME: my-java-artifacts
+  JAR_NAME: app.jar
+
 jobs:
-  build-and-deploy:
+  build-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: 🔄 Checkout Code
         uses: actions/checkout@v3
 
-      - name: ☕ Set up JDK 17
+      - name: ☕ Set up Java 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
@@ -21,23 +25,42 @@ jobs:
       - name: 🏗 Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: 📤 Copy JAR to EC2
-        uses: appleboy/scp-action@v0.1.4
+      - name: 📦 Upload to GitHub Artifact
+        uses: actions/upload-artifact@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "./target/*.jar"
-          target: "/home/ec2-user/apps"
+          name: springboot-app
+          path: target/*.jar
 
-      - name: 🚀 Start App on EC2
+      - name: ☁️ Upload JAR to S3
+        uses: aws-actions/s3-sync@v1
+        with:
+          bucket: ${{ env.BUCKET_NAME }}
+          region: us-east-1
+          source: ./target
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: 🚀 Deploy on EC2 using Docker and S3 JAR
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            pkill -f 'java -jar' || true
-            JAR_NAME=$(ls /home/ec2-user/apps/*.jar | head -n 1)
-            nohup java -jar "$JAR_NAME" > /home/ec2-user/apps/app.log 2>&1 &
-            echo "Started $JAR_NAME"
+            sudo yum install -y awscli docker
+            sudo service docker start
+            mkdir -p ~/apps
+            cd ~/apps
+
+            aws s3 cp s3://${{ env.BUCKET_NAME }}/app.jar app.jar --region us-east-1
+
+            echo 'FROM eclipse-temurin:17-jdk-alpine' > Dockerfile
+            echo 'COPY app.jar app.jar' >> Dockerfile
+            echo 'ENTRYPOINT ["java", "-jar", "/app.jar"]' >> Dockerfile
+
+            docker stop springboot-app || true
+            docker rm springboot-app || true
+
+            docker build -t springboot-app .
+            docker run -d --name springboot-app -p 8080:8080 springboot-app
