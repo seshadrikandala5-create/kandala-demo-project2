@@ -1,75 +1,54 @@
-name: CI/CD with S3, Docker & EC2
+name: Build and Deploy to EC2 from S3
 
 on:
   push:
-    branches: [ main ]
-
-env:
-  BUCKET_NAME: my-java-artifacts     # 🔁 Replace with your S3 bucket name
-  JAR_NAME: app.jar                  # Name of the final JAR in S3
+    branches: [main]
 
 jobs:
-  build-and-deploy:
+  build-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🔄 Checkout Code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: ☕ Set up Java 17
+      - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 🏗 Build with Maven
+      - name: Build JAR
         run: mvn clean package -DskipTests
 
-      - name: 📦 Upload JAR to GitHub Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload to GitHub Actions Artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: springboot-app
+          name: app-jar
           path: target/*.jar
 
-      - name: ☁️ Upload JAR to S3 using AWS CLI
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1  # or your region
+
+      - name: Upload JAR to S3
+        run: aws s3 cp target/*.jar  s3://kandala-java-artifacts/jar/
+
+      - name: Create SSH Key
         run: |
-          pip install awscli
-          aws s3 cp target/*.jar s3://${{ env.BUCKET_NAME }}/${{ env.JAR_NAME }} --region us-east-1
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          echo "${{ secrets.EC2_KEY }}" | base64 -d > key.pem
+          chmod 400 key.pem
 
-      - name: 📤 Copy Dockerfile to EC2
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "Dockerfile"
-          target: "/home/ec2-user/apps/"
-
-      - name: 🚀 Deploy on EC2 using Docker
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo yum install -y docker awscli
-            sudo service docker start
-
-            mkdir -p /home/ec2-user/apps
-            cd /home/ec2-user/apps
-
-            echo "⬇️ Downloading app.jar from S3"
-            aws s3 cp s3://${{ env.BUCKET_NAME }}/${{ env.JAR_NAME }} app.jar --region us-east-1
-
-            echo "🧹 Cleaning up old Docker containers"
-            docker stop springboot-app || true
-            docker rm springboot-app || true
-
-            echo "🐳 Building Docker image"
-            docker build -t springboot-app .
-
-            echo "🚀 Running Docker container"
-            docker run -d --name springboot-app -p 8080:8080 springboot-app
+      - name: SSH into EC2 and deploy JAR from S3
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p /home/ec2-user/app
+            cd /home/ec2-user/app
+            aws s3 cp s3://kandala-java-artifacts/jar/single-microservice.jar .
+            docker stop java-app || true
+            docker rm java-app || true
+            docker run -d --name java-app -p 8080:8080 -v $(pwd):/app -w /app openjdk:17 java -jar single-microservice.jar
+          EOF
