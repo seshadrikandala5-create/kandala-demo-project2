@@ -3,7 +3,10 @@ name: Build and Deploy to EC2 from S3
 on:
   push:
     branches: [main]
-
+env:
+  S3_BUCKET: kandala-java-artifacts
+  S3_JAR_PATH: jar
+  JAR_NAME: single-microservice.jar
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
