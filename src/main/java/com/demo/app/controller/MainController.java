@@ -29,8 +29,8 @@ public class MainController {
     // ✅ GET users
     @GetMapping("/users")
     public List<Map<String, Object>> getUsers() {
-        Map<String, Object> user1 = Map.of("id", 1, "name", "Alice");
-        Map<String, Object> user2 = Map.of("id", 2, "name", "Bob");
+        Map<String, Object> user1 = Map.of("id", 1, "name", "Seshadri Kandala");
+        Map<String, Object> user2 = Map.of("id", 2, "name", "Project Demo");
         return List.of(user1, user2);
     }
 
