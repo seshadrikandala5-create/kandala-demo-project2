@@ -60,8 +60,18 @@ jobs:
           mkdir -p /home/ec2-user/app
           cd /home/ec2-user/app
 
+          # Download JAR from S3
           aws s3 cp s3://${{ env.S3_BUCKET }}/jar/${{ env.JAR_NAME }} .
 
+          # ✅ Dynamically create Dockerfile
+          cat <<EOT > Dockerfile
+          FROM openjdk:17-jdk-slim
+          WORKDIR /app
+          COPY ${JAR_NAME} app.jar
+          ENTRYPOINT ["java", "-jar", "app.jar"]
+          EOT
+
+          # Rebuild and redeploy container
           docker stop java-app || true
           docker rm java-app || true
           docker build -t app-image .
@@ -70,4 +80,4 @@ jobs:
           -p 8080:8080 \
           -e S3_BUCKET=${{ env.S3_BUCKET }} \
            app-image
-          EOF
+           EOF
