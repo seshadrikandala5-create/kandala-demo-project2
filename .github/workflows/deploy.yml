@@ -48,36 +48,23 @@ jobs:
           echo "${{ secrets.EC2_PEM_KEY_B64 }}" | base64 -d > kandala-demo-java.pem
           chmod 400 kandala-demo-java.pem
 
-      - name: SSH into EC2 and deploy using Docker
+      - name: SSH into EC2 and deploy using Dockerfile
         run: |
           ssh -o StrictHostKeyChecking=no -i kandala-demo-java.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
-          sudo yum update -y
-          sudo yum install docker -y
-          sudo service docker start
-          sudo usermod -a -G docker ec2-user
-          newgrp docker
-
-          mkdir -p /home/ec2-user/app
-          cd /home/ec2-user/app
-
-          # Download JAR from S3
-          aws s3 cp s3://${{ env.S3_BUCKET }}/jar/${{ env.JAR_NAME }} .
-
-          # ✅ Dynamically create Dockerfile
-          cat <<EOT > Dockerfile
-          FROM openjdk:17-jdk-slim
-          WORKDIR /app
-          COPY ${JAR_NAME} app.jar
-          ENTRYPOINT ["java", "-jar", "app.jar"]
-          EOT
-
-          # Rebuild and redeploy container
-          docker stop java-app || true
-          docker rm java-app || true
-          docker build -t app-image .
-          docker run -d \
-          --name java-app \
-          -p 8080:8080 \
-          -e S3_BUCKET=${{ env.S3_BUCKET }} \
-           app-image
-           EOF
+            sudo yum update -y
+            sudo yum install docker -y
+            sudo service docker start
+            sudo usermod -a -G docker ec2-user
+            newgrp docker
+            mkdir -p /home/ec2-user/app
+            cd /home/ec2-user/app
+            aws s3 cp s3://${{ env.S3_BUCKET }}/jar/${{ env.JAR_NAME }} single-microservice.jar
+            echo 'FROM openjdk:17-jdk-slim' > Dockerfile
+            echo 'WORKDIR /app' >> Dockerfile
+            echo 'COPY single-microservice.jar app.jar' >> Dockerfile
+            echo 'ENTRYPOINT ["java", "-jar", "app.jar"]' >> Dockerfile
+            docker build -t app-image .
+            docker stop java-app || true
+            docker rm java-app || true
+            docker run -d --name java-app -p 8080:8080 app-image
+          EOF
