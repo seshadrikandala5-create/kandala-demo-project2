@@ -35,20 +35,25 @@ jobs:
           aws-region: eu-north-1  # or your region
 
       - name: Upload JAR to S3
-        run: aws s3 cp target/*.jar  s3://kandala-java-artifacts/jar/
+        run: aws s3 cp target/*.jar s3://$S3_BUCKET/jar/$JAR_NAME
 
-      - name: Create SSH Key
+      - name: Decode PEM key and prepare for SSH
         run: |
-          echo "${{ secrets.EC2_KEY }}" | base64 -d > key.pem
-          chmod 400 key.pem
+            echo "${{ secrets.EC2_PEM_KEY_B64 }}" | base64 -d > kandala-demo-java.pem
+            chmod 400 kandala-demo-java.pem
 
-      - name: SSH into EC2 and deploy JAR from S3
+      - name: SSH into EC2 and deploy using Docker
         run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            mkdir -p /home/ec2-user/app
-            cd /home/ec2-user/app
-            aws s3 cp s3://kandala-java-artifacts/jar/single-microservice.jar .
-            docker stop java-app || true
-            docker rm java-app || true
-            docker run -d --name java-app -p 8080:8080 -v $(pwd):/app -w /app openjdk:17 java -jar single-microservice.jar
-          EOF
+          ssh -o StrictHostKeyChecking=no -i kandala-demo-java.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+          sudo yum update -y
+          sudo yum install docker -y
+          sudo service docker start
+          sudo usermod -a -G docker ec2-user
+          newgrp docker
+          mkdir -p /home/ec2-user/app
+          cd /home/ec2-user/app
+          aws s3 cp s3://${{ env.S3_BUCKET }}/jar/${{ env.JAR_NAME }} .
+          docker stop java-app || true
+          docker rm java-app || true
+          docker run -d --name java-app -p 8080:8080 openjdk:17 java -jar ${{ env.JAR_NAME }}
+        EOF
