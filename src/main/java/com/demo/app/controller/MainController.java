@@ -30,7 +30,7 @@ public class MainController {
     @GetMapping("/users")
     public List<Map<String, Object>> getUsers() {
         Map<String, Object> user1 = Map.of("id", 1, "name", "Seshadri Kandala");
-        Map<String, Object> user2 = Map.of("id", 2, "name", "Project Demo");
+        Map<String, Object> user2 = Map.of("id", 2, "name", "Project Demo Session");
         return List.of(user1, user2);
     }
 
