@@ -16,18 +16,17 @@ import java.util.*;
 public class MainController {
 
     private final S3Client s3 = S3Client.builder()
-        .region(Region.of("eu-north-1"))  // 👈 Update to your region
-        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())  // ✅ Use env vars (works in Docker/EC2)
+        .region(Region.of("eu-north-1"))
+        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
         .build();
 
-    // ✅ Simple test endpoint
+    // ✅ Simple hello message
     @GetMapping("/hello")
     public String hello() {
-        return "WELCOM TO THE DEMO SESSION - SESHADRI KANDALA!";
+        return "WELCOME TO THE DEMO SESSION - SESHADRI KANDALA!";
     }
 
-    @RestController
-public class MainController {
+    // ✅ Unified response with welcome message, users, and thank you
     @GetMapping("/details")
     public Map<String, Object> getDetails() {
         List<Map<String, Object>> users = new ArrayList<>();
@@ -44,8 +43,8 @@ public class MainController {
 
         return response;
     }
-}
-    // ✅ Create user
+
+    // ✅ Create user endpoint
     @PostMapping("/users/create")
     public Map<String, Object> createUser(@RequestParam String name) {
         Map<String, Object> user = new HashMap<>();
@@ -55,20 +54,21 @@ public class MainController {
         return user;
     }
 
-    // ✅ Upload file to S3
+    // ✅ File upload to S3
     @PostMapping("/upload")
     public Map<String, Object> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
-        String bucketName = System.getenv("S3_BUCKET");  // ✅ Use env variable
-
+        String bucketName = System.getenv("S3_BUCKET");
         if (bucketName == null || bucketName.isEmpty()) {
             throw new RuntimeException("S3_BUCKET environment variable is not set");
         }
 
-        s3.putObject(PutObjectRequest.builder()
+        s3.putObject(
+            PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(file.getOriginalFilename())
                 .build(),
-            RequestBody.fromBytes(file.getBytes()));
+            RequestBody.fromBytes(file.getBytes())
+        );
 
         return Map.of(
             "message", "File uploaded successfully",
