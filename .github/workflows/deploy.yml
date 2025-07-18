@@ -35,7 +35,8 @@ jobs:
           aws-region: eu-north-1  # or your region
 
       - name: Upload JAR to S3
-        run: aws s3 cp target/*.jar s3://$S3_BUCKET/jar/$JAR_NAME
+        run: |
+             aws s3 cp target/*.jar s3://${{ env.S3_BUCKET }}/${{ env.S3_JAR_PATH }}/${{ env.JAR_NAME }}
 
       - name: Decode PEM key and prepare for SSH
         run: |
