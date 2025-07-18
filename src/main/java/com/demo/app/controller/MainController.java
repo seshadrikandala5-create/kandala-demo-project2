@@ -26,19 +26,25 @@ public class MainController {
         return "WELCOM TO THE DEMO SESSION - SESHADRI KANDALA!";
     }
 
-    @GetMapping("/users")
-public List<Map<String, Object>> getUsers() {
-    List<Map<String, Object>> users = new ArrayList<>();
+    @RestController
+public class MainController {
+    @GetMapping("/details")
+    public Map<String, Object> getDetails() {
+        List<Map<String, Object>> users = new ArrayList<>();
+        users.add(Map.of("id", 1, "name", "SESHADRI KANDALA"));
+        users.add(Map.of("id", 2, "name", "HCL TECHNOLOGIES LIMITED"));
+        users.add(Map.of("id", 3, "name", "TECHNICAL SPECIALIST"));
+        users.add(Map.of("id", 4, "name", "BANGALORE"));
+        users.add(Map.of("id", 5, "name", "JIGANI CAMPUS"));
 
-    users.add(Map.of("id", 1, "name", "SESHADRI KANDALA"));
-    users.add(Map.of("id", 2, "name", "HCL TECHNOLOGIES"));
-    users.add(Map.of("id", 3, "name", "TECHNICAL SPECIALIST"));
-    users.add(Map.of("id", 4, "name", "BANGALORE"));
-    users.add(Map.of("id", 5, "name", "JIGANI CAMPUS"));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("welcome", "WELCOME TO THE PROJECT DEMO SESSION - SESHADRI KANDALA!");
+        response.put("users", users);
+        response.put("thankyou", "THANK YOU FOR JOINING THE DEMO SESSION.");
 
-    return users;
+        return response;
+    }
 }
-
     // ✅ Create user
     @PostMapping("/users/create")
     public Map<String, Object> createUser(@RequestParam String name) {
