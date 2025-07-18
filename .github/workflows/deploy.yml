@@ -51,17 +51,23 @@ jobs:
       - name: SSH into EC2 and deploy using Docker
         run: |
           ssh -o StrictHostKeyChecking=no -i kandala-demo-java.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
-            sudo yum update -y
-            sudo yum install -y docker
-            sudo service docker start
-            sudo usermod -a -G docker ec2-user
-            mkdir -p /home/ec2-user/app
-            cd /home/ec2-user/app
-            aws s3 cp s3://kandala-java-artifacts/jar/single-microservice.jar .
-            # Kill anything using port 8080
-            sudo fuser -k 8080/tcp || true
-            # Stop and remove any existing container
-            docker stop java-app || true
-            docker rm java-app || true
-            # Run new container
-            docker run -d --name java-app -p 8080:8080 openjdk:17 java -jar single-microservice.jar
+          sudo yum update -y
+          sudo yum install docker -y
+          sudo service docker start
+          sudo usermod -a -G docker ec2-user
+          newgrp docker
+
+          mkdir -p /home/ec2-user/app
+          cd /home/ec2-user/app
+
+          aws s3 cp s3://${{ env.S3_BUCKET }}/jar/${{ env.JAR_NAME }} .
+
+          docker stop java-app || true
+          docker rm java-app || true
+          docker build -t app-image .
+          docker run -d \
+          --name java-app \
+          -p 8080:8080 \
+          -e S3_BUCKET=${{ env.S3_BUCKET }} \
+           app-image
+          EOF
