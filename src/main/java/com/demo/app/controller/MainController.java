@@ -23,16 +23,21 @@ public class MainController {
     // ✅ Simple test endpoint
     @GetMapping("/hello")
     public String hello() {
-        return "Hello from Spring Boot on EC2!";
+        return "WELCOM TO THE DEMO SESSION - SESHADRI KANDALA!";
     }
 
-    // ✅ GET users
     @GetMapping("/users")
-    public List<Map<String, Object>> getUsers() {
-        Map<String, Object> user1 = Map.of("id", 1, "name", "Seshadri Kandala");
-        Map<String, Object> user2 = Map.of("id", 2, "name", "Project Demo Session");
-        return List.of(user1, user2);
-    }
+public List<Map<String, Object>> getUsers() {
+    List<Map<String, Object>> users = new ArrayList<>();
+
+    users.add(Map.of("id", 1, "name", "SESHADRI KANDALA"));
+    users.add(Map.of("id", 2, "name", "HCL TECHNOLOGIES"));
+    users.add(Map.of("id", 3, "name", "TECHNICAL SPECIALIST"));
+    users.add(Map.of("id", 4, "name", "BANGALORE"));
+    users.add(Map.of("id", 5, "name", "JIGANI CAMPUS"));
+
+    return users;
+}
 
     // ✅ Create user
     @PostMapping("/users/create")
