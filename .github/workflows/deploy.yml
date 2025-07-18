@@ -58,7 +58,10 @@ jobs:
             mkdir -p /home/ec2-user/app
             cd /home/ec2-user/app
             aws s3 cp s3://kandala-java-artifacts/jar/single-microservice.jar .
+            # Kill anything using port 8080
+            sudo fuser -k 8080/tcp || true
+            # Stop and remove any existing container
             docker stop java-app || true
             docker rm java-app || true
+            # Run new container
             docker run -d --name java-app -p 8080:8080 openjdk:17 java -jar single-microservice.jar
-          EOF
