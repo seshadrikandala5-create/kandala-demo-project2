@@ -30,7 +30,7 @@ public class MainController {
     @GetMapping("/details")
     public Map<String, Object> getDetails() {
         List<Map<String, Object>> users = new ArrayList<>();
-        users.add(Map.of("id", 1, "name", "SESHADRI KANDALA"));
+        users.add(Map.of("id", 1, "name", "VASU KANDALA"));
         users.add(Map.of("id", 2, "name", "HCL TECHNOLOGIES LIMITED"));
         users.add(Map.of("id", 3, "name", "TECHNICAL SPECIALIST"));
         users.add(Map.of("id", 4, "name", "BANGALORE"));
