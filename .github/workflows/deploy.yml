@@ -1,4 +1,4 @@
-name: Build and Deploy to aws EC2 from S3
+name: Build and Deploy to EC2 from S3
 
 on:
   push:
