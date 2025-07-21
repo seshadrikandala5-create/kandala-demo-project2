@@ -2,7 +2,7 @@ name: Build and Deploy to aws EC2 from S3
 
 on:
   push:
-    branches: [main]
+    branches: [sit]
 
 env:
   S3_BUCKET: kandala-java-artifacts
